@@ -1,11 +1,9 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"name": "Underscore Italics",
+	"id": "underscore-italics",
+	"description": "Enables setting the preferred formatting character for italics to be underscore as opposed to asterisk by default.",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"author": "Ian Franklin",
 	"isDesktopOnly": false
 }
