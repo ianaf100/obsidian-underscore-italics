@@ -28,7 +28,7 @@ export default class UnderscoreItalics extends Plugin {
 		await this.loadSettings();
 
 		if (this.settings.defaultItalic === 'asterisk') 
-		console.log('loading obsidian-underscore-italics plugin');
+		console.log('loading underscore-italics plugin');
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		/* this.addCommand({

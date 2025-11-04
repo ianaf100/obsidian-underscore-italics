@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: Partial<UnderscoreItalicsSettings> = {
 	defaultItalic: 'underscore',
 }
 
-const IS_ITALICIZED = /_[a-zA-z0-9]*_|_\*\*[a-zA-z0-9]*\*\*_/;
+const IS_ITALICIZED = /(?<!\\|_)_(?!_).*?(?<!\\)_|(?<!\\|\*)\*(?!\*).*?(?<![\*\\])\*/;
 
 export default class UnderscoreItalics extends Plugin {
 	settings: UnderscoreItalicsSettings;
@@ -26,8 +26,7 @@ export default class UnderscoreItalics extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		if (this.settings.defaultItalic === 'asterisk') 
-		console.log('loading obsidian-underscore-italics plugin');
+		console.log('loading underscore-italics plugin');
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		/* this.addCommand({
@@ -73,6 +72,7 @@ export default class UnderscoreItalics extends Plugin {
 	}
 
 	async saveSettings() {
+		this.delim = (this.settings.defaultItalic === 'asterisk') ? '*' : '_';
 		await this.saveData(this.settings);
 	}
 
@@ -87,36 +87,37 @@ export default class UnderscoreItalics extends Plugin {
 		if (editorSelected.ranges.length == 1) {
 			let range = editorSelected.main;
 			const transaction = this.generateTransaction(state, range);
-			selectionRanges.concat(transaction.selectionRanges);
-			changeList.concat(transaction.changes);
+			changeList.push(...transaction.changes);
+			selectionRanges.push(transaction.selectionRange);
 
 		// 2. If there's multiple cursors/selections
 		} else {
 			let selections = editorSelected.ranges;
 			let removeItalics = false;  // ? 
-
+			let offset = 0;
 			selections.forEach((selection) => {
-				let which: boolean = this.checkWordForItalic(state, selection);  // ?
-				const partialTransaction = this.generateTransaction(state, selection);
-				changeList.concat(partialTransaction.changes);
-				selectionRanges.concat(partialTransaction.selectionRanges);
+				// let which: boolean = this.checkWordForItalic(state, selection);  // ?
+				const partialTransaction = this.generateTransaction(state, selection, offset);
+				changeList.push(...partialTransaction.changes);
+				selectionRanges.push(partialTransaction.selectionRange);
+				offset += (partialTransaction.toItalics) ? 2 : -2;
+				console.log(offset);
 			});
-			
-			// Execute the given list of update transactions in the editor view
-			view.dispatch({
-				changes: changeList,
-				selection: EditorSelectionCM.create(selectionRanges)
-			});
+
+		}
+		// Execute the given list of update transactions in the editor view
+		view.dispatch({
+			changes: changeList,
+			selection: EditorSelectionCM.create(selectionRanges)
+		});
 
 			//// Note: Obsidian default behavior seems to be if there are multiple selections, then it becomes a 
 			////   UNIVERAL operation to either italicize OR unitalicize for EVERY candidate. However I can't
 			////   figure out how it determines *which* it decides to pick if there's a mixture.
-		}
 	}
 
-	// TODO? add spaces to the regex spec to make it more strict, bc false positives are possible 
-
-	generateTransaction(state: EditorState, range: SelectionRange) {
+	
+	generateTransaction(state: EditorState, range: SelectionRange, cursorOffset: number = 0) {
 		let cursorPos = undefined;
 		
 		// Cursor only, no selection
@@ -127,44 +128,60 @@ export default class UnderscoreItalics extends Plugin {
 			range = EditorSelectionCM.range(selectedWord?.from ?? cursorPos, selectedWord?.to ?? cursorPos);
 		}
 
-		// Checks if the immediate selection is italicized already
+		let cursorUpdate: SelectionRange;
+		let changes = [];
+		let toItalics: boolean;
+
+		// Unitalicize (the immediate selection is italicized already) 
 		if (this.checkWordForItalic(state, range)) {
-			return this.unitalicizeTransaction(state, range, cursorPos);
+			toItalics = false;
+			let updatedRange = this.updateRange(state, range);
+			changes = [
+				{ from: updatedRange.to, to: updatedRange.to+1, insert: '' },
+				{ from: updatedRange.from-1, to: updatedRange.from, insert: '' }
+			];
+			cursorUpdate = this.genercursorPos(cursorPos ?? updatedRange, cursorOffset - 1);
+			console.log(cursorUpdate);
+		
+		// Italicize: the selection isn't already italicized
 		} else {
-			return this.italicizeTransaction(range, cursorPos);
-		}
-	}
-
-	unitalicizeTransaction(state: EditorState, range: SelectionRange, cursorPos?: number) {
-		let cursorUpdates: SelectionRange[];
-		if (cursorPos) {
-			cursorUpdates = [EditorSelectionCM.cursor(Math.max(0, cursorPos-1))];  // moves cursor back 1
-		} else { 
-			cursorUpdates = [EditorSelectionCM.range(range.anchor-1, range.head-1)];
-		}
-		let updatedRange = this.updateRange(state, range);
-		return {
-			selectionRanges: cursorUpdates,
-			changes: [
-				{ from: updatedRange.to, to: (updatedRange.to + 1), insert: '' },
-				{ from: updatedRange.from, to: (updatedRange.from + 1), insert: '' }
-			]
-		};
-	}
-
-	italicizeTransaction(range: SelectionRange, cursorPos?: number) {
-		let cursorUpdates: SelectionRange[];
-		if (cursorPos) 
-			cursorUpdates = [EditorSelectionCM.cursor(cursorPos+1)]; // move cursor forward 1
-		else 
-			cursorUpdates = [EditorSelectionCM.range(range.anchor+1, range.head+1)];
-		return {
-			selectionRanges: cursorUpdates,
-			changes: [
+			toItalics = true;
+			changes = [
 				{ from: range.from, insert: `${this.delim}` },
 				{ from: range.to,   insert: `${this.delim}` }
-			]
+			];
+			cursorUpdate = this.genercursorPos(cursorPos ?? range, cursorOffset + 1);
+		}
+		return {
+			changes: changes,
+			selectionRange: cursorUpdate,
+			toItalics: toItalics
 		};
+	}
+
+	unitalicizeTransaction(state: EditorState, range: SelectionRange) {
+		let updatedRange = this.updateRange(state, range);
+		return [
+			{ from: updatedRange.to, to: (updatedRange.to + 1), insert: '' },
+			{ from: updatedRange.from, to: (updatedRange.from + 1), insert: '' }
+		];
+	}
+
+	italicizeTransaction(range: SelectionRange) {
+		return [
+			{ from: range.from, insert: `${this.delim}` },
+			{ from: range.to,   insert: `${this.delim}` }
+		];
+	}
+
+	genercursorPos(range: SelectionRange | number, cursorOffset: number): SelectionRange {
+		if (range instanceof SelectionRange) {
+			// Cursor is a selection range
+			return EditorSelectionCM.range(Math.max(0, range.anchor + cursorOffset), range.head + cursorOffset);
+		} else {
+			// Cursor is just a cursor position
+			return EditorSelectionCM.cursor(Math.max(0, range + cursorOffset)); 
+		} 
 	}
 
 	// Lazy check to see if current word has underscores around it
@@ -180,16 +197,16 @@ export default class UnderscoreItalics extends Plugin {
 		const token = state.sliceDoc(range.from - radius, range.to + radius);
 		const match = token.match(IS_ITALICIZED);
 		if (match?.index != undefined) {
-			let fromOffset = match.index - radius; 
-			let toOffset = match[0].length - ((range.to - range.from) - fromOffset) - 1;
-			// Creates a new selection with `from` and `to` located directly left of the corresponding underscore
+			let fromOffset = match.index - radius + 1; 
+			let toOffset = match[0].length - ((range.to - range.from) - fromOffset) - 2;
+			// Creates a new selection with `from` and `to` located just inside the underscores
 			return EditorSelectionCM.range(range.from + fromOffset, range.to + toOffset);
 		}
 		return range;
 	}
 
 
-	// helper to turn Obsidian line/char range into from/to range for CodeMirror
+	// helper to turn Obsidian line/char range into a from/to range for CodeMirror
 	private getFromTo(selection: EditorSelectionOb): EditorRange {
 		let anchorpos = selection.anchor.line + selection.anchor.ch;
 		let headpos = selection.head.line + selection.head.ch;
@@ -197,8 +214,6 @@ export default class UnderscoreItalics extends Plugin {
 		let to = anchorpos < headpos ? selection.head : selection.anchor;
 		return { from: from, to: to };
 	}
-
-
 }
 
 class MySettingTab extends PluginSettingTab {
@@ -216,7 +231,7 @@ class MySettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Dropdown Test #1')
-			.setDesc('Default character for italics')
+			.setDesc('Default character to use for new italics')
 			.addDropdown((dropdown) => dropdown
 				.addOption('underscore', 'Underscore')
 				.addOption('asterisk', 'Asterisk')
@@ -224,7 +239,6 @@ class MySettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					let choice: 'underscore' | 'asterisk' = (value as 'underscore' | 'asterisk') ?? 'underscore';
 					this.plugin.settings.defaultItalic = choice; 
-					this.plugin.delim = (choice === 'asterisk') ? '*' : '_';
 					await this.plugin.saveSettings();
 				})
 			);

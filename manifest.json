@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-underscore-italics",
 	"name": "Underscore Italics",
+	"id": "underscore-italics",
+	"description": "Enables setting the preferred formatting character for italics to be underscore as opposed to asterisk by default.",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Test plugin for underscore italics.",
 	"author": "Ian Franklin",
 	"isDesktopOnly": false
 }
