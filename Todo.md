@@ -3,6 +3,7 @@
 - [x] Cursor updates for multiple cursors need to be additive
 - [x] Basic out of bounds checks
 - [ ] Larger selection with smaller italic selection inside doesn't do what I want
+    - That's a bigger project
 - [ ] Dynamically update offset based on where the cursor is (before/inside/after the italics)
 
 

@@ -1,7 +1,10 @@
 export const EMPTY = /(?<!_)__(?!_)/;
-export const UNDERSCORE = /(?<!\\|_)_(?!_).*?(?<!\\)_/;
-export const ASTERISK = /(?<!\\|\*)\*(?!\*).*?(?<!\\|\*)\*(?!\*)/;
+export const UNDERSCORE = /(?<!\\|_)_(?!_).*(?<!\\)_/;
+export const ASTERISK = /(?<!\\|\*)\*(?!\*).*(?<!\\|\*)\*(?!\*)/;
+const UNDERSCORE_GREEDY = /(?<!\\|_)_(?!_).*?(?<!\\)_/;
+const ASTERISK_GREEDY = /(?<!\\|\*)\*(?!\*).*?(?<!\\|\*)\*(?!\*)/;
 
+//TODO: update to detect *** bold/italic
 
 export function matchItalics(selection: string): RegExpMatchArray | null {
     return selection.match(ASTERISK) ??
@@ -11,4 +14,10 @@ export function matchItalics(selection: string): RegExpMatchArray | null {
 
 export function isItalicized(selection: string): boolean {
     return matchItalics(selection) != null;
+}
+
+const innerItalics = new RegExp(UNDERSCORE_GREEDY.source + "|" + ASTERISK_GREEDY.source, 'g');
+
+export function findInnerItalics(selection: string) {
+    return selection.matchAll(innerItalics);
 }

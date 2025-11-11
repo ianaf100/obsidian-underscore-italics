@@ -2,7 +2,8 @@
 import { App, Editor, EditorRange, EditorSelection as EditorSelectionOb, MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection as EditorSelectionCM, EditorState, SelectionRange } from "@codemirror/state";
-import { checkSelectionForItalics, expandToParentSyntax, updateRange } from "src/utils"
+import { checkSelectionForItalics, expandToParentSyntax, getSelectionText, updateRange } from "src/utils"
+import { findInnerItalics } from 'src/regex';
 
 
 type DelimiterCharacter = '_' | '*';
@@ -121,22 +122,33 @@ export default class UnderscoreItalics extends Plugin {
 		}
 		const toItalics = !checkSelectionForItalics(range, view.state);
 
-		// Italicize:
-		if (toItalics) {
-			changes = [
-				{ from: range.from, insert: `${this.delim}` },
-				{ from: range.to,   insert: `${this.delim}` }
-			];
-			cursorUpdate = this.updateCursorTransaction(cursorPos ?? range, cursorOffset + 1);
-		
 		// Unitalicize (the immediate selection is italicized already):
-		} else {
+		if (toItalics === false) {
 			const updatedRange = updateRange(view.state, range);
+			cursorOffset -= 1;
 			changes = [
 				{ from: updatedRange.to, to: updatedRange.to+1, insert: '' },
 				{ from: updatedRange.from-1, to: updatedRange.from, insert: '' }
 			];
-			cursorUpdate = this.updateCursorTransaction(cursorPos ?? updatedRange, cursorOffset - 1); 
+			cursorUpdate = this.updateCursorTransaction(cursorPos ?? range, cursorOffset); 
+
+		// Italicize:
+		} else {
+			// First: check for internal italic sections and undo them
+			cursorOffset += 1;
+			changes = []
+			let headOffset = 0;
+			for (const match of findInnerItalics(getSelectionText(view.state, range))) {
+				let from = range.from + match.index + 1;
+				let to = from + match[0].length - 2;
+				changes.push({ from: to, to: to+1, insert: '' })
+				changes.push({ from: from-1, to: from, insert: '' })
+				headOffset += 2;
+			}
+			changes.push({ from: range.from, insert: `${this.delim}` });
+			changes.push({ from: range.to,   insert: `${this.delim}` });
+			cursorUpdate = EditorSelectionCM.range(Math.max(0, range.from + cursorOffset), 
+												   range.to + cursorOffset - headOffset); 
 		}
 		return {
 			changes: changes,
@@ -153,8 +165,9 @@ export default class UnderscoreItalics extends Plugin {
 		
 		// Has parent formatting: check if italic and not anything else
 		if (!newRange.eq(range)) {
-			if (checkSelectionForItalics(newRange, state)) 
-				return newRange;  
+			if (checkSelectionForItalics(newRange, state)) {
+				return newRange;
+			}  
 			// TODO: expand parent for nested formatting? is it worth it?
 		}
 

@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 import { syntaxTree } from '@codemirror/language';
 import { NodeIterator } from '@lezer/common';
-import { isItalicized, matchItalics } from "./regex";
+import { isItalicized, findInnerItalics, matchItalics } from "./regex";
 
 
 // Returns actual text string of a selection range's content in the editor. 
@@ -12,14 +12,22 @@ function getSelectionText(state: EditorState, range: SelectionRange, radius = 0)
     return state.sliceDoc(from, to);
 }
 
-// Lazy check to see if current selection has underscores around it
+// Lazy check to see if current (entire) selection is italic
 function checkSelectionForItalics(range: SelectionRange, state: EditorState) {
-    //TODO: update to detect *** bold/italic
-    const token = getSelectionText(state, range, 3);
-    return isItalicized(token)
+    const selectionLength = getSelectionText(state, range).trim().length;
+    const token = getSelectionText(state, range, 3);  
+    const match = matchItalics(token);
+    // Ensure the italic portion has similar length to the entire selection
+    if (match) {
+        const diff = selectionLength - (match[0].length - 2); 
+        return Math.abs(diff) <= 1;  // tolerance of 1(?)
+    } 
+    return false;
 }
 
-// Return a new selection that's expanded to include nearby enclosing italics
+// TODO: change this radius shit to expandToParentSyntax?
+
+// Return a new selection that's properly expanded to nearby enclosing italics
 function updateRange(state: EditorState, range: SelectionRange, radius = 3) {
     const token = getSelectionText(state, range, 3);
     const match = matchItalics(token);
