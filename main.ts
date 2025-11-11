@@ -2,9 +2,8 @@
 import { App, Editor, EditorRange, EditorSelection as EditorSelectionOb, MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection as EditorSelectionCM, EditorState, SelectionRange } from "@codemirror/state";
-import { expandToParentSyntax } from "src/utils"
+import { checkSelectionForItalics, expandToParentSyntax, updateRange } from "src/utils"
 
-// Remember to rename these classes and interfaces!
 
 type DelimiterCharacter = '_' | '*';
 
@@ -16,8 +15,6 @@ interface UnderscoreItalicsSettings {
 const DEFAULT_SETTINGS: Partial<UnderscoreItalicsSettings> = {
 	defaultItalic: 'underscore',
 }
-
-const IS_ITALICIZED = /(?<!\\|_)_(?!_).*?(?<!\\)_|(?<!\\|\*)\*(?!\*).*?(?<!\\|\*)\*(?!\*)/;
 
 export default class UnderscoreItalics extends Plugin {
 	settings: UnderscoreItalicsSettings;
@@ -85,7 +82,7 @@ export default class UnderscoreItalics extends Plugin {
 		// 1. Single cursor/selection
 		if (editorSelection.ranges.length == 1) {
 			const range = editorSelection.main;
-			const transaction = this.generateTransaction(view, range);
+			const transaction = this.buildTransaction(view, range);
 			changeList.push(...transaction.changes);
 			selectionRanges.push(transaction.selectionRange);
 
@@ -95,55 +92,51 @@ export default class UnderscoreItalics extends Plugin {
 			let offset = 0;
 			selections.forEach((selection) => {
 				// const which: boolean = this.checkWordForItalic(state, selection);  // ?
-				const partialTransaction = this.generateTransaction(view, selection, offset);
+				const partialTransaction = this.buildTransaction(view, selection, offset);
 				changeList.push(...partialTransaction.changes);
 				selectionRanges.push(partialTransaction.selectionRange);
 				offset += (partialTransaction.toItalics) ? 2 : -2;
 			});
 
 		}
-		// Execute the given list of update transactions in the editor view
+		// Push the given list of update transactions to the editor view
 		view.dispatch({
 			changes: changeList,
 			selection: EditorSelectionCM.create(selectionRanges)
 		});
-		//// Note: Obsidian default behavior seems to be if there are multiple selections, then it becomes a 
-		////   UNIVERAL operation to either italicize OR unitalicize for EVERY candidate. However I can't
-		////   figure out how it determines *which* it decides to pick if there's a mixture.
 	}
-	
-	generateTransaction(view: EditorView, range: SelectionRange, cursorOffset = 0) {
+
+	// Returns the components of a partial transaction for an italicize/unitalicize operation
+	// on ONE selection.  
+	buildTransaction(view: EditorView, range: SelectionRange, cursorOffset = 0) {
 		let cursorPos = undefined;
-		
+		let cursorUpdate: SelectionRange;
+		let changes = [];
+
 		// Cursor only, no selection
 		if (range.empty) {
 			cursorPos = range.anchor;
 			let updatedRange = this.expandCursorSelection(range, view.state);
 			range = updatedRange;				
 		}
+		const toItalics = !checkSelectionForItalics(range, view.state);
 
-		let toItalics: boolean;
-		let cursorUpdate: SelectionRange;
-		let changes = [];
-
-		// Unitalicize (the immediate selection is italicized already) 
-		if (this.checkSelectionForItalics(range, view.state)) {
-			toItalics = false;
-			const updatedRange = this.updateRange(view.state, range);
-			changes = [
-				{ from: updatedRange.to, to: updatedRange.to+1, insert: '' },
-				{ from: updatedRange.from-1, to: updatedRange.from, insert: '' }
-			];
-			cursorUpdate = this.updateCursorTransaction(cursorPos ?? updatedRange, cursorOffset - 1);
-		
-		// Italicize: the selection isn't already italicized
-		} else {
-			toItalics = true;
+		// Italicize:
+		if (toItalics) {
 			changes = [
 				{ from: range.from, insert: `${this.delim}` },
 				{ from: range.to,   insert: `${this.delim}` }
 			];
 			cursorUpdate = this.updateCursorTransaction(cursorPos ?? range, cursorOffset + 1);
+		
+		// Unitalicize (the immediate selection is italicized already):
+		} else {
+			const updatedRange = updateRange(view.state, range);
+			changes = [
+				{ from: updatedRange.to, to: updatedRange.to+1, insert: '' },
+				{ from: updatedRange.from-1, to: updatedRange.from, insert: '' }
+			];
+			cursorUpdate = this.updateCursorTransaction(cursorPos ?? updatedRange, cursorOffset - 1); 
 		}
 		return {
 			changes: changes,
@@ -151,9 +144,30 @@ export default class UnderscoreItalics extends Plugin {
 			toItalics: toItalics
 		};
 	}
+	
+	// Given a cursor selection, returns the appropriate smart selection surrounding the cursor. 
+	// Either a selection expanded to the surrounding italics block (if one exists),
+	// or to the surrounding word (if one exists), otherwise returns the original cursor
+	expandCursorSelection(range: SelectionRange, state: EditorState) {
+		let newRange = expandToParentSyntax(range, state);
+		
+		// Has parent formatting: check if italic and not anything else
+		if (!newRange.eq(range)) {
+			if (checkSelectionForItalics(newRange, state)) 
+				return newRange;  
+			// TODO: expand parent for nested formatting? is it worth it?
+		}
+
+		// No existing italics: 
+		// Attempt to expand the selection to the surrounding word at the cursor point 
+		const selectedWord = state.wordAt(range.anchor);
+		if (selectedWord) 
+			return EditorSelectionCM.range(selectedWord.from, selectedWord.to);
+		return range;
+	}
 
 	unitalicizeTransaction(state: EditorState, range: SelectionRange) {
-		const updatedRange = this.updateRange(state, range);
+		const updatedRange = updateRange(state, range);
 		return [
 			{ from: updatedRange.to, to: (updatedRange.to + 1), insert: '' },
 			{ from: updatedRange.from, to: (updatedRange.from + 1), insert: '' }
@@ -168,6 +182,7 @@ export default class UnderscoreItalics extends Plugin {
 	}
 
 	updateCursorTransaction(range: SelectionRange | number, cursorOffset: number): SelectionRange {
+		// FIXME: cursor translation needs to be calculated, dependent on the update + context
 		if (range instanceof SelectionRange) {
 			// Cursor is a selection range
 			return EditorSelectionCM.range(Math.max(0, range.anchor + cursorOffset), range.head + cursorOffset);
@@ -175,74 +190,6 @@ export default class UnderscoreItalics extends Plugin {
 			// Cursor is just a cursor position
 			return EditorSelectionCM.cursor(Math.max(0, range + cursorOffset)); 
 		} 
-	}
-	
-	// Given a cursor selection, returns the appropriate smart selection surrounding the cursor. 
-	// Either a selection expanded to the surrounding italics block (if one exists),
-	// or to the surrounding word (if one exists), otherwise returns the original selection
-	expandCursorSelection(range: SelectionRange, state: EditorState) {
-		// First: check if cursor is inside any formatting syntax
-		let newRange = expandToParentSyntax(range, state);
-		
-		// No surrounding formatting
-		if (newRange.eq(range)) {
-			// Attempt to expand the selection to the surrounding word at the cursor point 
-			const selectedWord = state.wordAt(range.anchor);
-			if (!selectedWord) 
-				return range;
-			return EditorSelectionCM.range(selectedWord.from, selectedWord.to);
-		}
-
-		// Check if parent formatting is italics and not anything else
-		if (this.checkSelectionForItalics(newRange, state)) {
-			return newRange;
-		} else {
-			// TODO: expand parent for nested formatting? is it worth it?
-			return range;
-		}
-	}
-
-	/* return selectParentSyntax({
-		state: state, 
-		dispatch: (x) => {}  // override dispatch() so the selection isn't actually changed
-	}); */
-
-	// Lazy check to see if current selection has underscores around it
-	checkSelectionForItalics(range: SelectionRange, state: EditorState, radius = 3) {
-		//TODO: update to detect *** bold/italic
-		radius = Math.min(radius, range.from);
-		const token = state.sliceDoc(range.from - radius, range.to + radius);
-		return token.match(IS_ITALICIZED) != null;
-	}
-
-	// Return a new selection that's expanded to include nearby enclosing italics
-	updateRange(state: EditorState, range: SelectionRange, radius = 3) {
-		radius = Math.min(radius, range.from);
-		const token = state.sliceDoc(range.from - radius, range.to + radius);
-		const match = token.match(IS_ITALICIZED);
-		if (match?.index != undefined) {
-			const fromOffset = match.index - radius + 1; 
-			const toOffset = match[0].length - ((range.to - range.from) - fromOffset) - 2;
-			// Creates a new selection with `from` and `to` located just inside the underscores
-			return EditorSelectionCM.range(range.from + fromOffset, range.to + toOffset);
-		}
-		return range;
-	}
-
-	private printSelection(view: EditorView, range?: SelectionRange) {
-		if (!range) {
-			range = view.state.selection.main;
-		}
-		console.log(view.state.sliceDoc(range.from, range.to));
-	}
-
-	// helper to turn Obsidian line/char range into a from/to range for CodeMirror
-	private getFromTo(selection: EditorSelectionOb): EditorRange {
-		const anchorpos = selection.anchor.line + selection.anchor.ch;
-		const headpos = selection.head.line + selection.head.ch;
-		const from = anchorpos < headpos ? selection.anchor : selection.head;
-		const to = anchorpos < headpos ? selection.head : selection.anchor;
-		return { from: from, to: to };
 	}
 }
 
@@ -273,4 +220,21 @@ class MySettingTab extends PluginSettingTab {
 				})
 			);
 	}
+}
+
+// debug
+function printSelection(view: EditorView, range?: SelectionRange) {
+	if (!range) {
+		range = view.state.selection.main;
+	}
+	console.log(view.state.sliceDoc(range.from, range.to));
+}
+
+// helper to turn Obsidian line/char range into a from/to range for CodeMirror
+function getFromTo(selection: EditorSelectionOb): EditorRange {
+	const anchorpos = selection.anchor.line + selection.anchor.ch;
+	const headpos = selection.head.line + selection.head.ch;
+	const from = anchorpos < headpos ? selection.anchor : selection.head;
+	const to = anchorpos < headpos ? selection.head : selection.anchor;
+	return { from: from, to: to };
 }
