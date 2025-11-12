@@ -18,6 +18,6 @@ export function isItalicized(selection: string): boolean {
 
 const innerItalics = new RegExp(UNDERSCORE_GREEDY.source + "|" + ASTERISK_GREEDY.source, 'g');
 
-export function findInnerItalics(selection: string) {
+export function matchInnerItalics(selection: string) {
     return selection.matchAll(innerItalics);
 }

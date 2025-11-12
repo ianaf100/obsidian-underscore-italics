@@ -2,8 +2,8 @@
 import { App, Editor, EditorRange, EditorSelection as EditorSelectionOb, MarkdownView, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection as EditorSelectionCM, EditorState, SelectionRange } from "@codemirror/state";
-import { checkSelectionForItalics, expandToParentSyntax, getSelectionText, updateRange } from "src/utils"
-import { findInnerItalics } from 'src/regex';
+import { checkSelectionForItalics, findItalicSyntaxParent, getSelectionText, updateRange } from "src/utils"
+import { matchInnerItalics } from 'src/regex';
 
 
 type DelimiterCharacter = '_' | '*';
@@ -24,43 +24,20 @@ export default class UnderscoreItalics extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		console.log('loading underscore-italics plugin');
-
-		// This adds an editor command that can perform some operation on the current editor instance
-		/* this.addCommand({
-			id: 'ian-editor-command',
-			name: 'Ian\'s editor command',
-			editorCallback: (editor: Editor) => {
-				console.log('Selection: ' + editor.getSelection());
-			}
-		}); */
-
-		// This adds an editor command that first checks whether the current state of the app allows execution of the command
 		this.addCommand({
 			id: 'toggle-italic',
 			name: 'Toggle italic',	
-			editorCheckCallback: (checking: boolean, editor: Editor, view: MarkdownView) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// @ts-expect-error, not typed
-					const editorView = view.editor.cm as EditorView;
-
-					if (!checking) {
-						// If checking is false, we actually perform the operation:
-						this.toggleItalics(editor, editorView);
-					}
-					// If checking is true, we're only checking if the command 'can' be run.
-					// This command will only show up in Command Palette when this check function returns true.
-					// Here we're just checking that MarkdownView is active.
-					return true;
-				}
+			icon: 'lucide-italic',
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				// @ts-expect-error, not typed
+				const editorView = view.editor.cm as EditorView;
+				this.toggleItalics(editor, editorView);
 			}
 		});
 		this.addSettingTab(new MySettingTab(this.app, this));
 	}
 
 	onunload() {
-
 	}
 
 	async loadSettings() {
@@ -107,101 +84,94 @@ export default class UnderscoreItalics extends Plugin {
 		});
 	}
 
-	// Returns the components of a partial transaction for an italicize/unitalicize operation
-	// on ONE selection.  
-	buildTransaction(view: EditorView, range: SelectionRange, cursorOffset = 0) {
-		let cursorPos = undefined;
-		let cursorUpdate: SelectionRange;
-		let changes = [];
-
-		// Cursor only, no selection
+	// Returns the components of a single italicize/unitalicize transaction  
+	//  on ONE cursor/selection. Can be combined with other partial transactions.   
+	buildTransaction(view: EditorView, range: SelectionRange, offset = 0) {
+		let cursorPos = null;
 		if (range.empty) {
 			cursorPos = range.anchor;
 			let updatedRange = this.expandCursorSelection(range, view.state);
-			range = updatedRange;				
+			range = updatedRange;
 		}
-		const toItalics = !checkSelectionForItalics(range, view.state);
 
-		// Unitalicize (the immediate selection is italicized already):
-		if (toItalics === false) {
-			const updatedRange = updateRange(view.state, range);
-			cursorOffset -= 1;
-			changes = [
-				{ from: updatedRange.to, to: updatedRange.to+1, insert: '' },
-				{ from: updatedRange.from-1, to: updatedRange.from, insert: '' }
-			];
-			cursorUpdate = this.updateCursorTransaction(cursorPos ?? range, cursorOffset); 
+		if (checkSelectionForItalics(range, view.state) == false) {
+			return this.italicizeTransaction(view.state, range, ++offset, cursorPos);
 
-		// Italicize:
 		} else {
-			// First: check for internal italic sections and undo them
-			cursorOffset += 1;
-			changes = []
-			let headOffset = 0;
-			for (const match of findInnerItalics(getSelectionText(view.state, range))) {
-				let from = range.from + match.index + 1;
-				let to = from + match[0].length - 2;
-				changes.push({ from: to, to: to+1, insert: '' })
-				changes.push({ from: from-1, to: from, insert: '' })
-				headOffset += 2;
-			}
-			changes.push({ from: range.from, insert: `${this.delim}` });
-			changes.push({ from: range.to,   insert: `${this.delim}` });
-			cursorUpdate = EditorSelectionCM.range(Math.max(0, range.from + cursorOffset), 
-												   range.to + cursorOffset - headOffset); 
+			const updatedRange = updateRange(view.state, range);
+			return this.unitalicizeTransaction(updatedRange, --offset, cursorPos);
 		}
-		return {
-			changes: changes,
-			selectionRange: cursorUpdate,
-			toItalics: toItalics
-		};
 	}
 	
-	// Given a cursor selection, returns the appropriate smart selection surrounding the cursor. 
-	// Either a selection expanded to the surrounding italics block (if one exists),
-	// or to the surrounding word (if one exists), otherwise returns the original cursor
+	// Given a cursor position, returns an expanded smart selection around it (if one is found)
 	expandCursorSelection(range: SelectionRange, state: EditorState) {
-		let newRange = expandToParentSyntax(range, state);
-		
-		// Has parent formatting: check if italic and not anything else
-		if (!newRange.eq(range)) {
-			if (checkSelectionForItalics(newRange, state)) {
-				return newRange;
-			}  
-			// TODO: expand parent for nested formatting? is it worth it?
-		}
+		// Look for existing italics syntax
+		let newRange = findItalicSyntaxParent(range, state);
+		if (!newRange.eq(range)) 
+			// Return a new selection around the entire italics section
+			return newRange;
 
-		// No existing italics: 
-		// Attempt to expand the selection to the surrounding word at the cursor point 
+		// Check if the cursor is in the middle of a word 
 		const selectedWord = state.wordAt(range.anchor);
 		if (selectedWord) 
+			// Return a selection around the nearby word 
 			return EditorSelectionCM.range(selectedWord.from, selectedWord.to);
+		
+		// No smart selection found - return original cursor
 		return range;
 	}
 
-	unitalicizeTransaction(state: EditorState, range: SelectionRange) {
-		const updatedRange = updateRange(state, range);
-		return [
-			{ from: updatedRange.to, to: (updatedRange.to + 1), insert: '' },
-			{ from: updatedRange.from, to: (updatedRange.from + 1), insert: '' }
+	unitalicizeTransaction(range: SelectionRange, accumOffset: number, cursorPos: number | null) {
+		let changes = [
+			{ from: range.to,     to: range.to+1, insert: '' },
+			{ from: range.from-1, to: range.from, insert: '' }
 		];
+		return {
+			changes: changes,
+			selectionRange: this.updateCursorTransaction(cursorPos ?? range, accumOffset),
+			toItalics: false
+		};
 	}
 
-	italicizeTransaction(range: SelectionRange) {
-		return [
-			{ from: range.from, insert: `${this.delim}` },
-			{ from: range.to,   insert: `${this.delim}` }
-		];
+	italicizeTransaction(state: EditorState, range: SelectionRange, accumOffset: number, cursorPos: number | null) {
+		let fullSelection = getSelectionText(state, range).trimStart();
+		let anchorOffset = (range.to - range.from) - fullSelection.length;
+		fullSelection = fullSelection.trimEnd();
+		let headOffset = (range.to - range.from) - fullSelection.length - anchorOffset;
+		let changes = []
+		
+		// FIRST check for internal italic sections and undo them
+		for (const match of matchInnerItalics(fullSelection)) {
+			let anchor = range.from + match.index + 1;
+			let head = anchor + match[0].length - 2;
+			changes.push({ insert: '', from: head,     to: head+1 });
+			changes.push({ insert: '', from: anchor-1, to: anchor });
+			headOffset += 2;
+		}
+		// Push final italicize operation
+		changes.push({ from: range.from + anchorOffset, insert: `${this.delim}` });
+		changes.push({ from: range.to - headOffset,   insert: `${this.delim}` });
+		return {
+			changes: changes,
+			toItalics: true,
+			selectionRange: (cursorPos) 
+				? this.updateCursorTransaction(cursorPos, accumOffset) 
+				: EditorSelectionCM.range(
+					Math.max(0, (range.from + anchorOffset + accumOffset)), 
+					Math.min(state.doc.length, (range.to - headOffset + accumOffset))
+			)
+		}
 	}
 
-	updateCursorTransaction(range: SelectionRange | number, cursorOffset: number): SelectionRange {
+	updateCursorTransaction(range: SelectionRange | number, accumOffset: number): SelectionRange {
 		// FIXME: cursor translation needs to be calculated, dependent on the update + context
+		//        (or I can skip this probably)
 		if (range instanceof SelectionRange) {
 			// Cursor is a selection range
-			return EditorSelectionCM.range(Math.max(0, range.anchor + cursorOffset), range.head + cursorOffset);
+			return EditorSelectionCM.range(Math.max(0, range.anchor + accumOffset), range.head + accumOffset);
 		} else {
 			// Cursor is just a cursor position
-			return EditorSelectionCM.cursor(Math.max(0, range + cursorOffset)); 
+			return EditorSelectionCM.cursor(Math.max(0, range + accumOffset)); 
 		} 
 	}
 }
