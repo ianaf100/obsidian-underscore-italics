@@ -1,9 +1,10 @@
 ### Bugs:
 
 ## Todo:
-- [ ] Preserve correct anchor and head
+- [x] Preserve correct anchor and head
 - [ ] Expand built-in word selection to include additional characters
 - [ ] Improve on redundancy/efficiency
+    - Improve `updateRange()`
 - [ ] Dynamically update offset based on where the cursor is (before/inside/after the italics)
     - _(or I can skip this probably)_
 - [ ] Handle `***`?

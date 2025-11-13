@@ -34,8 +34,10 @@ function updateRange(state: EditorState, range: SelectionRange, radius = 3) {
     if (match?.index != undefined) {
         const fromOffset = match.index - radius + 1; 
         const toOffset = match[0].length - ((range.to - range.from) - fromOffset) - 2;
-        // Creates a new selection with `from` and `to` located just inside the underscores
-        return EditorSelection.range(range.from + fromOffset, range.to + toOffset);
+        let anchor = (range.anchor < range.head) ? range.from + fromOffset : range.to + toOffset; 
+        let head   = (range.anchor > range.head) ? range.from + fromOffset : range.to + toOffset; 
+        // Creates a new selection with the edges located just inside italic tags
+        return EditorSelection.range(anchor, head);
     }
     return range;
 }

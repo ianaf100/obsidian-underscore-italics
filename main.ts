@@ -87,7 +87,7 @@ export default class UnderscoreItalics extends Plugin {
 	// Returns the components of a single italicize/unitalicize transaction  
 	//  on ONE cursor/selection. Can be combined with other partial transactions.   
 	buildTransaction(view: EditorView, range: SelectionRange, offset = 0) {
-		let cursorPos = null;
+		let cursorPos;
 		if (range.empty) {
 			cursorPos = range.anchor;
 			let updatedRange = this.expandCursorSelection(range, view.state);
@@ -106,6 +106,7 @@ export default class UnderscoreItalics extends Plugin {
 	// Given a cursor position, returns an expanded smart selection around it (if one is found)
 	expandCursorSelection(range: SelectionRange, state: EditorState) {
 		// Look for existing italics syntax
+		// FIXME: This breaks when the cursor is on the outside edge of the delimiter
 		let newRange = findItalicSyntaxParent(range, state);
 		if (!newRange.eq(range)) 
 			// Return a new selection around the entire italics section
@@ -121,57 +122,81 @@ export default class UnderscoreItalics extends Plugin {
 		return range;
 	}
 
-	unitalicizeTransaction(range: SelectionRange, accumOffset: number, cursorPos: number | null) {
+	unitalicizeTransaction(range: SelectionRange, accumOffset: number, cursorPos?: number) {
 		let changes = [
 			{ from: range.to,     to: range.to+1, insert: '' },
 			{ from: range.from-1, to: range.from, insert: '' }
 		];
 		return {
+			toItalics: false,
 			changes: changes,
-			selectionRange: this.updateCursorTransaction(cursorPos ?? range, accumOffset),
-			toItalics: false
+			selectionRange: this.updateCursorTransaction({ 
+				anchor: range.anchor, 
+				head: range.head, 
+				cursor: cursorPos, 
+				accumOffset: accumOffset 
+			}),
 		};
 	}
 
-	italicizeTransaction(state: EditorState, range: SelectionRange, accumOffset: number, cursorPos: number | null) {
+	italicizeTransaction(state: EditorState, range: SelectionRange, accumOffset: number, cursorPos?: number) {
 		let fullSelection = getSelectionText(state, range).trimStart();
-		let anchorOffset = (range.to - range.from) - fullSelection.length;
+		let fromOffset = (range.to - range.from) - fullSelection.length;
 		fullSelection = fullSelection.trimEnd();
-		let headOffset = (range.to - range.from) - fullSelection.length - anchorOffset;
+		let toOffset = (range.to - range.from) - fullSelection.length - fromOffset;
 		let changes = []
-		
+		let z = 0;  // ?????
 		// FIRST check for internal italic sections and undo them
 		for (const match of matchInnerItalics(fullSelection)) {
-			let anchor = range.from + match.index + 1;
+			let anchor = range.from + match.index + 1 + fromOffset;
 			let head = anchor + match[0].length - 2;
 			changes.push({ insert: '', from: head,     to: head+1 });
 			changes.push({ insert: '', from: anchor-1, to: anchor });
-			headOffset += 2;
+			z += 2;
 		}
+		
 		// Push final italicize operation
-		changes.push({ from: range.from + anchorOffset, insert: `${this.delim}` });
-		changes.push({ from: range.to - headOffset,   insert: `${this.delim}` });
+		changes.push({ from: range.from + fromOffset, insert: `${this.delim}` });
+		changes.push({ from: range.to - toOffset,   insert: `${this.delim}` });
+
 		return {
-			changes: changes,
 			toItalics: true,
-			selectionRange: (cursorPos) 
-				? this.updateCursorTransaction(cursorPos, accumOffset) 
-				: EditorSelectionCM.range(
-					Math.max(0, (range.from + anchorOffset + accumOffset)), 
-					Math.min(state.doc.length, (range.to - headOffset + accumOffset))
-			)
+			changes: changes,
+			selectionRange: this.updateCursorTransaction({ 
+				anchor: range.anchor, 
+				head: range.head, 
+				cursor: cursorPos, 
+				accumOffset: accumOffset,
+				fromOffset: fromOffset,
+				toOffset: toOffset + z
+			})
 		}
 	}
 
-	updateCursorTransaction(range: SelectionRange | number, accumOffset: number): SelectionRange {
-		// FIXME: cursor translation needs to be calculated, dependent on the update + context
-		//        (or I can skip this probably)
-		if (range instanceof SelectionRange) {
-			// Cursor is a selection range
-			return EditorSelectionCM.range(Math.max(0, range.anchor + accumOffset), range.head + accumOffset);
+	updateCursorTransaction({ anchor, head, cursor, fromOffset = 0, toOffset = 0, accumOffset = 0 }
+		: { anchor: number;     	// anchor position of italic selection
+			head: number; 	    	// head position of italic selection
+			cursor?: number;    	// optional cursor pos (overrides anchor/head as final pos)
+			fromOffset?: number; 	// offset value for selection.from position (if any) 
+			toOffset?: number;      // offset value for selection.to position (if any) 
+			accumOffset?: number; 	// accumulated total offset for the entire selection
+		}): SelectionRange { 
+
+		// Final cursor is just a cursor position
+		if (cursor) {
+			let finalCursor = cursor + accumOffset;
+			return EditorSelectionCM.cursor(Math.max(0, finalCursor)); 
+			
+		// Cursor is a selection range
 		} else {
-			// Cursor is just a cursor position
-			return EditorSelectionCM.cursor(Math.max(0, range + accumOffset)); 
+			let leftToRight = anchor < head;
+			let from = leftToRight ? anchor : head;
+			let to   = leftToRight ? head : anchor;
+			from = Math.max(0, from + fromOffset + accumOffset);
+			to   = to - toOffset + accumOffset;
+			anchor = leftToRight ? from : to;
+			head   = leftToRight ? to : from;
+			return EditorSelectionCM.range(anchor, head);
 		} 
 	}
 }
