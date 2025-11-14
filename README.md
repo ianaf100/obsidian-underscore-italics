@@ -27,8 +27,23 @@ Certain organizations and style guides ([Google developer docs](https://develope
 
 Other plugins have attempted to correct this but didn't fully implement all the default features and behavior that Obsidian's built-in italic operation does. That's what I wanted, and is why I chose to make this as my first plugin. 
 
+### Usage
 
-### Feature List (forget what this is called)
+Use the command `Underscore Italics: Toggle italic` in the same way you would use the default `Toggle italic` command. 
+
+**Recommendation**: Unmap the hotkey `Ctrl -> I` and instead map it to `Underscore Italics: Toggle italic` 
+
+### Instructions
+- In Obsidian (recommended)
+    - Open 'Settings' -> Community plugins' and turn off 'Restricted mode' if it is enabled
+    - Click 'Browse' and find 'Underscore Italics' by searching. 
+    - Click 'Install' and then 'Enable'
+- Manual
+    - Create a folder named `underscore-italics` under `YOUR_VAULT_NAME/.obsidian/plugins`.
+    - Place `manifest.json`, `main.js`, and `style.css` from the latest release into the folder.
+    - Enable it through the "Community plugin" setting tab.
+
+### Feature Roadmap
 
 - [ ] Expand built-in word selection to include apostrophes and other additional characters
 - [ ] Specific handling of `***` and `___`

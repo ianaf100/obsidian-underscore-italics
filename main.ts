@@ -1,9 +1,13 @@
 import { Editor, MarkdownView, Plugin  } from 'obsidian';
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
-import { checkSelectionForItalics, expandCursorSelection, nextChar, prevChar, selectionText, updateRange } from "src/utils/selection-utils"
 import { matchInnerItalics } from 'src/utils/regex';
 import { UnderscoreItalicsSettingTab, UnderscoreItalicsSettings, DEFAULT_SETTINGS }  from 'src/UnderscoreItalicsSettings';
+import { 
+	checkSelectionForItalics, 
+	expandCursorSelection, 
+	selectionText, 
+	updateRange } from "src/utils/selection-utils"
 
 type DelimiterCharacter = '_' | '*';
 
@@ -64,7 +68,6 @@ export default class UnderscoreItalics extends Plugin {
 				selectionRanges.push(partialTransaction.selectionRange);
 				offset += (partialTransaction.toItalics) ? 2 : -2;
 			});
-
 		}
 		// Push the given list of update transactions to the editor view
 		view.dispatch({
@@ -78,16 +81,14 @@ export default class UnderscoreItalics extends Plugin {
 	buildTransaction(view: EditorView, range: SelectionRange, offset = 0) {
 		let cursorPos;
 		if (range.empty) {
-			// let ab = view.state.sliceDoc(Math.max(0, range.anchor-1), Math.min(view.state.doc.length, range.anchor+1));
-			// console.log(`${ab}`)
-			// if (prevChar(range.anchor, view.state) === ' ') {  // all whitespace?
-			// 	if (nextChar(range.anchor, view.state) !== ' ') {
-			// 	}
-			// } else if (nextChar(range.anchor, view.state) === ' ') {
-			// }
 			cursorPos = range.anchor;
-			let updatedRange = expandCursorSelection(range, view.state);
-			range = updatedRange;
+			// If the cursor is right after or before an italic delimiter, move it inside
+			const adjacentChars = selectionText(view.state, {from: cursorPos-1, to: cursorPos+1});
+			if (adjacentChars.match(/\s_/))
+			    cursorPos += 1;
+			if (adjacentChars.match(/_\s/))
+				cursorPos -= 1;
+			range = expandCursorSelection(EditorSelection.cursor(cursorPos), view.state);
 		}
 
 		if (checkSelectionForItalics(range, view.state) == false) {
@@ -118,24 +119,24 @@ export default class UnderscoreItalics extends Plugin {
 
 	italicizeTransaction(state: EditorState, range: SelectionRange, accumOffset: number, cursorPos?: number) {
 		let fullSelection = selectionText(state, range).trimStart();
-		let fromOffset = (range.to - range.from) - fullSelection.length;
+		let leftPadding = (range.to - range.from) - fullSelection.length;
 		fullSelection = fullSelection.trimEnd();
-		let toOffset = (range.to - range.from) - fullSelection.length - fromOffset;
-		let changes = []
-		let z = 0;  // ?????
+		let rightPadding = (range.to - range.from) - fullSelection.length - leftPadding;
+		let toOffset = 0; 
+		let changes = [];
+
 		// FIRST check for internal italic sections and undo them
 		for (const match of matchInnerItalics(fullSelection)) {
-			let anchor = range.from + match.index! + 1 + fromOffset;
+			let anchor = range.from + match.index! + 1 + leftPadding;
 			let head = anchor + match[0].length - 2;
 			changes.push({ insert: '', from: head,     to: head+1 });
 			changes.push({ insert: '', from: anchor-1, to: anchor });
-			z += 2;
+			toOffset += 2;
 		}
 		
 		// Push final italicize operation
-		changes.push({ from: range.from + fromOffset, insert: `${this.delim}` });
-		changes.push({ from: range.to - toOffset,   insert: `${this.delim}` });
-
+		changes.push({ from: range.from + leftPadding, insert: `${this.delim}` });
+		changes.push({ from: range.to - rightPadding,   insert: `${this.delim}` });
 		return {
 			toItalics: true,
 			changes: changes,
@@ -144,8 +145,8 @@ export default class UnderscoreItalics extends Plugin {
 				head: range.head, 
 				cursor: cursorPos, 
 				accumOffset: accumOffset,
-				fromOffset: fromOffset,
-				toOffset: toOffset + z
+				fromOffset: leftPadding,
+				toOffset: rightPadding + toOffset
 			})
 		}
 	}
@@ -159,21 +160,18 @@ export default class UnderscoreItalics extends Plugin {
 			accumOffset?: number; 	// accumulated total offset for the entire selection
 		}): SelectionRange { 
 
-		// Final cursor is just a cursor position
+		// Final cursor is a cursor only
 		if (cursor) {
 			let finalCursor = cursor + accumOffset;
 			return EditorSelection.cursor(Math.max(0, finalCursor)); 
 			
 		// Cursor is a selection range
 		} else {
-			let leftToRight = anchor < head;
-			let from = leftToRight ? anchor : head;
-			let to   = leftToRight ? head : anchor;
-			from = Math.max(0, from + fromOffset + accumOffset);
-			to   = to - toOffset + accumOffset;
-			anchor = leftToRight ? from : to;
-			head   = leftToRight ? to : from;
-			return EditorSelection.range(anchor, head);
+			const leftToRight = anchor < head;
+			const [fromBase, toBase] = leftToRight ? [anchor, head] : [head, anchor];
+			const from = Math.max(0, fromBase + fromOffset + accumOffset);
+			const to = toBase - toOffset + accumOffset;
+			return EditorSelection.range(leftToRight ? from : to, leftToRight ? to : from);
 		} 
 	}
 }

@@ -6,6 +6,7 @@ const ASTERISK_GREEDY = /(?<!\\|\*)\*(?!\*).*?(?<!\\|\*)\*(?!\*)/;
 const innerItalics = new RegExp(UNDERSCORE_GREEDY.source + "|" + ASTERISK_GREEDY.source, 'g');
 
 //TODO: update to detect *** bold/italic
+// (?<=(?<![\*_])[\*_])\*{2}.*\*{2}(?=[\*_](?![_\*]))
 
 export function matchItalics(selection: string): RegExpMatchArray | null {
     return selection.match(ASTERISK) ??

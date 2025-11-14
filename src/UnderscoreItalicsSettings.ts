@@ -1,4 +1,4 @@
-import {App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import UnderscoreItalics from 'main';
 
 
@@ -26,7 +26,7 @@ export class UnderscoreItalicsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Default italics style')
-			.setDesc('Default character to use for new italics')
+			.setDesc('Which syntax character to use for new italicizations')
 			.addDropdown((dropdown) => dropdown
 				.addOption('underscore', 'Underscore')
 				.addOption('asterisk', 'Asterisk')

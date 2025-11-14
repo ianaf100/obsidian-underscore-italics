@@ -1,14 +1,18 @@
 import { EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 import { syntaxTree } from '@codemirror/language';
-import { NodeIterator } from '@lezer/common';
+import { NodeIterator, SyntaxNode } from '@lezer/common';
 import { matchItalics } from "./regex";
 
 
 // Returns actual text string of a selection range's content in the editor. 
 //  Optional radius to grow each side of the selection.  
-const selectionText = (state: EditorState, range: SelectionRange, radius = 0) => {
+function selectionText(
+    state: EditorState, 
+    range: SelectionRange | {from: number, to: number},
+    radius = 0
+) {
     const from = Math.max(0, range.from - radius);
-    const to = Math.min(state.doc.length, range.to + radius); 
+    const to = Math.min(state.doc.length, range.to + radius);
     return state.sliceDoc(from, to);
 }
 
@@ -54,30 +58,17 @@ const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
 
 // Given a cursor position, returns an expanded smart selection around it (if one is found)
 const expandCursorSelection = (cursor: SelectionRange, state: EditorState) => {
-    // FIXME: This breaks when the cursor is on the outside edge of the delimiter
-    let anchor = cursor.anchor;
-    const charBefore = prevChar(anchor, state);
-    const charAfter  = nextChar(anchor, state);
-    console.log(charBefore)
-    console.log(charAfter)
-    // If the cursor is right after or before an italic delimiter, expand to include it
-    if (charBefore === ' ' && charAfter === '_') {
-        anchor = Math.min(state.doc.length, anchor + 1);
-    } else if (charAfter === ' ' && charBefore === '_') {
-        anchor = Math.max(0, anchor - 1);
-    }
-    
     // Look for existing italics syntax
-    let newRange = findItalicSyntaxParent(EditorSelection.cursor(anchor), state);
+    let newRange = findItalicSyntaxParent(EditorSelection.cursor(cursor.anchor), state);
     if (!newRange.eq(cursor)) 
         // Return a new selection around the entire italics section
         return newRange;
 
     // Check if the cursor is in the middle of a word 
-    const selectedWord = state.wordAt(anchor);
+    const selectedWord = state.wordAt(cursor.anchor);
     if (selectedWord) 
         // Return a selection around the nearby word 
-        return EditorSelection.cursor(selectedWord.from, selectedWord.to);
+        return EditorSelection.range(selectedWord.from, selectedWord.to);
     
     // No smart selection found
     return cursor;
@@ -100,11 +91,14 @@ const findItalicSyntaxParent = (selectionRange: SelectionRange, state: EditorSta
               cur.next) {
             // italic ancestor detected: scan for the beginning and end
             if (node.type.name.contains('em')) {
-                let next = node.nextSibling;
-                while (next && !next?.type.name.contains('formatting-em')) next = next.nextSibling;
-                
+                let next: SyntaxNode | null = node;
+                while (next && !next.type.name.contains('formatting-em')) {
+                    next = next.nextSibling;
+                }
                 let prev = node.prevSibling;
-                while (prev && !prev?.type.name.contains('formatting-em')) prev = prev.prevSibling;
+                while (prev && !prev.type.name.contains('formatting-em')) {
+                    prev = prev.prevSibling;
+                }
                 if (next && prev) {
                     return EditorSelection.range(prev.to, next.from);
                 }

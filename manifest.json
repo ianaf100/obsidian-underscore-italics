@@ -1,7 +1,7 @@
 {
 	"name": "Underscore Italics",
 	"id": "underscore-italics",
-	"description": "Enables setting the preferred formatting character for italics to be underscore as opposed to asterisk by default.",
+	"description": "Enables setting the preferred syntax for italic formatting to use underscores as opposed to asterisks by default.",
 	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"author": "Ian Franklin",
