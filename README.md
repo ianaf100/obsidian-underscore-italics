@@ -44,8 +44,9 @@ Use the command `Underscore Italics: Toggle italic` in the same way you would us
     - Enable it through the "Community plugin" setting tab.
 
 ### Feature Roadmap
-
-- [ ] Expand built-in word selection to include apostrophes and other additional characters
+- [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
+- [ ] Preferences to enable/disable specific italic behavior
+- [ ] Provide an option for underscore __bold__ as well
 - [ ] Specific handling of `***` and `___`
 - [x] Detect and trim addtional spacing automatically
 - [x] Syntax expansion: an italic operation done *within* an existing italic section

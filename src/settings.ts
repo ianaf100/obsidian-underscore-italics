@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import UnderscoreItalics from 'main';
+import UnderscoreItalicsPlugin from './main';
 
 
 export interface UnderscoreItalicsSettings {
@@ -12,16 +12,15 @@ export const DEFAULT_SETTINGS: Partial<UnderscoreItalicsSettings> = {
 }
 
 export class UnderscoreItalicsSettingTab extends PluginSettingTab {
-	plugin: UnderscoreItalics;
+	plugin: UnderscoreItalicsPlugin;
 
-	constructor(app: App, plugin: UnderscoreItalics) {
+	constructor(app: App, plugin: UnderscoreItalicsPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
 
 		new Setting(containerEl)

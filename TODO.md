@@ -2,7 +2,9 @@
 - [x] Fix the _cursor just after/before italic delimiter_ bug.
 
 ## Todo:
-- [ ] Expand built-in word selection to handle apostrophes and other additional characters
+- [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
+- [ ] Preferences to enable/disable specific italic behavior
+- [ ] Provide an option for underscore __bold__ as well
 - [ ] Specific handling of `***` and `___`
 - [ ] More thorough out-of-bounds checks
 - [ ] Improve on redundancy/efficiency: `updateRange()` and `expandCursorSelection()`
