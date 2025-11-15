@@ -73,16 +73,16 @@ function italicizeTransaction(
     cursorPos?: number
 ) {
     let fullSelection = selectionText(state, range).trimStart();
-    let leftPadding = (range.to - range.from) - fullSelection.length;
+    const leftPadding = (range.to - range.from) - fullSelection.length;
     fullSelection = fullSelection.trimEnd();
-    let rightPadding = (range.to - range.from) - fullSelection.length - leftPadding;
+    const rightPadding = (range.to - range.from) - fullSelection.length - leftPadding;
     let toOffset = 0; 
-    let changes = [];
+    const changes = [];
 
     // FIRST check for internal italic sections and undo them
     for (const match of matchInnerItalics(fullSelection)) {
-        let anchor = range.from + match.index! + 1 + leftPadding;
-        let head = anchor + match[0].length - 2;
+        const anchor = range.from + match.index! + 1 + leftPadding;
+        const head = anchor + match[0].length - 2;
         changes.push({ insert: '', from: head,     to: head+1 });
         changes.push({ insert: '', from: anchor-1, to: anchor });
         toOffset += 2;
@@ -106,7 +106,7 @@ function italicizeTransaction(
 }
 
 function unitalicizeTransaction(range: SelectionRange, accumOffset: number, cursorPos?: number) {
-    let changes = [
+    const changes = [
         { from: range.to,     to: range.to+1, insert: '' },
         { from: range.from-1, to: range.from, insert: '' }
     ];
@@ -133,7 +133,7 @@ function updateCursorTransaction({ anchor, head, cursor, fromOffset = 0, toOffse
 
     // Final cursor is a cursor only
     if (cursor) {
-        let finalCursor = cursor + accumOffset;
+        const finalCursor = cursor + accumOffset;
         return EditorSelection.cursor(Math.max(0, finalCursor)); 
         
     // Cursor is a selection range
@@ -146,11 +146,3 @@ function updateCursorTransaction({ anchor, head, cursor, fromOffset = 0, toOffse
     } 
 }
 
-
-// debug
-function printSelection(view: EditorView, range?: SelectionRange) {
-	if (!range) {
-		range = view.state.selection.main;
-	}
-	console.log(view.state.sliceDoc(range.from, range.to));
-}

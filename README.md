@@ -1,5 +1,5 @@
 
-# Obsidian Plugin: Underscore Italics
+## Obsidian Plugin: Underscore Italics
 
 Do you prefer using \__underscores_\_ for italics and **\*\*asterisks\*\*** for bold? Don't like how Obsidian's native commands force asterisk-based notation for both, with no option to customize this? This plugin is for you.
 
@@ -26,6 +26,23 @@ While some other plugins have attempted this in the past, the problem is they di
 ![GIF 3](assets/example3.gif)
 
 _When toggling a large italic section, automatically finds and toggles any existing smaller italic portions that are inside the outer selection._
+
+
+### Usage
+
+Use the command `Underscore Italics: Toggle italic` in the same way you would use the default `Toggle italic` command. 
+
+**Recommendation**: Unmap the hotkey `Ctrl -> I` and instead map it to `Underscore Italics: Toggle italic` 
+
+### Instructions
+- In Obsidian (recommended)
+    - Open 'Settings' -> Community plugins' and turn off 'Restricted mode' if it is enabled
+    - Click 'Browse' and find 'Underscore Italics' by searching. 
+    - Click 'Install' and then 'Enable'
+- Manual
+    - Create a folder named `underscore-italics` under `YOUR_VAULT_NAME/.obsidian/plugins`.
+    - Place `manifest.json`, `main.js`, and `style.css` from the latest release into the folder.
+    - Enable it through the "Community plugin" setting tab.
 
 ### Feature Roadmap
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters

@@ -48,8 +48,8 @@ const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
     if (match?.index != undefined) {
         const fromOffset = match.index - radius + 1; 
         const toOffset = match[0].length - ((range.to - range.from) - fromOffset) - 2;
-        let anchor = (range.anchor < range.head) ? range.from + fromOffset : range.to + toOffset; 
-        let head   = (range.anchor > range.head) ? range.from + fromOffset : range.to + toOffset; 
+        const anchor = (range.anchor < range.head) ? range.from + fromOffset : range.to + toOffset; 
+        const head   = (range.anchor > range.head) ? range.from + fromOffset : range.to + toOffset; 
         // Creates a new selection with the edges located just inside italic tags
         return EditorSelection.range(anchor, head);
     }
@@ -59,7 +59,7 @@ const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
 // Given a cursor position, returns an expanded smart selection around it (if one is found)
 const expandCursorSelection = (cursor: SelectionRange, state: EditorState) => {
     // Look for existing italics syntax
-    let newRange = findItalicSyntaxParent(EditorSelection.cursor(cursor.anchor), state);
+    const newRange = findItalicSyntaxParent(EditorSelection.cursor(cursor.anchor), state);
     if (!newRange.eq(cursor)) 
         // Return a new selection around the entire italics section
         return newRange;
@@ -76,15 +76,15 @@ const expandCursorSelection = (cursor: SelectionRange, state: EditorState) => {
 
 // For a selection, expand the bounds to contain the entire italic section (if one is detected)
 const findItalicSyntaxParent = (selectionRange: SelectionRange, state: EditorState) => {
-    let tree = syntaxTree(state);
+    const tree = syntaxTree(state);
     let stack = tree.resolveStack(selectionRange.from, 1);
     if (selectionRange.empty) {
-        let stackBefore = tree.resolveStack(selectionRange.from, -1);
+        const stackBefore = tree.resolveStack(selectionRange.from, -1);
         if (stackBefore.node.from >= stack.node.from && stackBefore.node.to <= stack.node.to)
             stack = stackBefore;
     }
     for (let cur: NodeIterator | null = stack; cur != null; cur = cur.next) {
-        let { node } = cur;
+        const { node } = cur;
         // expand to parent formatting
         if (((node.from <= selectionRange.from && node.to >= selectionRange.to) ||
              (node.to >= selectionRange.to && node.from <= selectionRange.from)) &&
