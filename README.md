@@ -5,15 +5,11 @@ Do you prefer using \__underscores_\_ for italics and **\*\*asterisks\*\*** for 
 
 **Underscore Italics** gives you the option to choose which italics delimiter you prefer: asterisk or underscore. It provides a setting to choose which one is used by default, and provides a`Toggle italic` command that uses the character chosen.
 
-While this plugin doesn't _override_ Obsidian's default toggle italic command, it can easily replace it by simply re-mapping the `Ctrl -> I` shortcut (or whatever you use). 
+While this plugin doesn't _override_ Obsidian's default toggle italic command, it can easily replace it by simply re-mapping the `Ctrl → I` shortcut (or whatever you use). 
 
 While some other plugins have attempted this in the past, the problem is they didn't fully implement all the default features and behavior of Obsidian's built-in italic operation. I built this to be faithful to Obsidian's standard behavior, so this should mimic the functionality that you're used to, including **multi-cursor support** and **smart selection**. 
 
 ### Features
-
-![GIF 1](assets/example1.gif)
-
-![GIF 2](assets/example2.gif)
 
 - Core italic toggling functionality
 - Word selection (you don't need to first highlight a word you want to toggle)
@@ -23,32 +19,31 @@ While some other plugins have attempted this in the past, the problem is they di
 - Uses clean CodeMirror transactions that don't pollute undo history
 - Behaves reliably, as other existing syntax-aware commands do
 
+![GIF 1](assets/example1.gif)
+![GIF 2](assets/example2.gif)
 ![GIF 3](assets/example3.gif)
-
-_When toggling a large italic section, automatically finds and toggles any existing smaller italic portions that are inside the outer selection._
-
 
 ### Usage
 
 Use the command `Underscore Italics: Toggle italic` in the same way you would use the default `Toggle italic` command. 
 
-**Recommendation**: Unmap the hotkey `Ctrl -> I` and instead map it to `Underscore Italics: Toggle italic` 
+**Recommendation**: Unmap the hotkey `Ctrl → I` and instead map it to `Underscore Italics: Toggle italic` 
 
-### Instructions
-- In Obsidian (recommended)
-    - Open 'Settings' -> Community plugins' and turn off 'Restricted mode' if it is enabled
-    - Click 'Browse' and find 'Underscore Italics' by searching. 
-    - Click 'Install' and then 'Enable'
-- Manual
+### Installation
+- Manual: (until the plugin has been published to the community tab, install with this method)
     - Create a folder named `underscore-italics` under `YOUR_VAULT_NAME/.obsidian/plugins`.
-    - Place `manifest.json`, `main.js`, and `style.css` from the latest release into the folder.
-    - Enable it through the "Community plugin" setting tab.
+    - Download `manifest.json` and `main.js` from the latest [release](https://github.com/ianaf100/obsidian-underscore-italics/releases) and place them into the folder.
+    - Enable it under "Installed plugins" in the "Community plugins" settings page.
+- ~~In Obsidian~~
+    - ~~Open 'Settings' → Community plugins' and turn off 'Restricted mode' if it is enabled~~
+    - ~~Click 'Browse' and find 'Underscore Italics' by searching~~
+    - ~~Click 'Install' and then 'Enable'~~
 
 ### Feature Roadmap
+- [ ] Selection over multiple lines italicizes each line separately
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
 - [ ] Preferences to enable/disable specific italic behavior
 - [ ] Provide an option for underscore __bold__ as well
-- [ ] Specific handling of `***` and `___`
 - [x] Detect and trim addtional spacing automatically
 - [x] Syntax expansion: an italic operation done *within* an existing italic section
 - [x] Preserve correct anchor and head

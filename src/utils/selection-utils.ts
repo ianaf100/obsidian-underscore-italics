@@ -39,8 +39,6 @@ const checkSelectionForItalics = (range: SelectionRange, state: EditorState) => 
     return false;
 }
 
-// TODO: change this radius shit to expandToParentSyntax?
-
 // Return a new selection that's properly expanded to nearby enclosing italics
 const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
     const token = selectionText(state, range, 3);

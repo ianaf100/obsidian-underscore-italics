@@ -2,6 +2,7 @@
 - [x] Fix the _cursor just after/before italic delimiter_ bug.
 
 ## Todo:
+- [ ] Selection over multiple lines italicizes each line separately
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
 - [ ] Preferences to enable/disable specific italic behavior
 - [ ] Provide an option for underscore __bold__ as well
