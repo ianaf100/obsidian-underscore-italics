@@ -40,7 +40,8 @@ Use the command `Underscore Italics: Toggle italic` in the same way you would us
     - ~~Click 'Install' and then 'Enable'~~
 
 ### Feature Roadmap
-- [ ] Selection over multiple lines italicizes each line separately
+- [ ] Selection over multiple lines italicizes each line separately, detecting lists
+- [ ] Change end-of-word behavior to be outside of the italics
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
 - [ ] Preferences to enable/disable specific italic behavior
 - [ ] Provide an option for underscore __bold__ as well
@@ -52,6 +53,6 @@ Use the command `Underscore Italics: Toggle italic` in the same way you would us
 
 ### Why?
 
-Markdown has always supported [two syntaxes](https://daringfireball.net/projects/markdown/syntax#em) for bold and italic formatting: underscore and asterisk. For most cases they can be used interchangeably, however some (like me) prefer to differentiate the two. Using a consistent convention (specifically underscores as italics, in my opinion) makes the Markdown formatting much _clearer_ and easier to parse when looking at the raw formatting in source mode. 
+Markdown has always supported [two syntaxes](https://daringfireball.net/projects/markdown/syntax#em) for bold and italic formatting: underscore and asterisk. For most cases they can be used interchangeably, however some (like me) prefer to differentiate the two. Using a consistent convention (specifically underscores as italics, in my opinion) makes the Markdown formatting much clearer and easier to parse when looking at the raw formatting in source mode. 
  
-Certain organizations and style guides (such as [Google developer documentation style guide](https://developers.google.com/style/text-formatting)) actually specify preference of underscores for _italics_ and double-asterisk for **bold**. Additionally, certain nested formattings of bold and italic are not even possible without differentiating the two (which is even mentioned in [Obsidian's documentation](https://help.obsidian.md/syntax#Bold%2C+italics%2C+highlights)). Regardless of your preference, I believe you should be able to choose, which always bothered me. That's why I chose to make this as my first plugin. 
+Certain organizations and style guides (such as [Google developer documentation style guide](https://developers.google.com/style/text-formatting)) actually specify preference of underscores for _italics_ and double-asterisk for **bold**. Additionally, certain nested formattings of bold and italic are not even possible without differentiating the two (which is even mentioned in [Obsidian's documentation](https://help.obsidian.md/syntax#Bold%2C+italics%2C+highlights)). Regardless of your preference, I believe you should be able to choose, which has personally bothered me. That's why I chose to make this as my first plugin. 

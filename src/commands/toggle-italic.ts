@@ -81,11 +81,13 @@ function italicizeTransaction(
 
     // FIRST check for internal italic sections and undo them
     for (const match of matchInnerItalics(fullSelection)) {
-        const anchor = range.from + match.index! + 1 + leftPadding;
-        const head = anchor + match[0].length - 2;
-        changes.push({ insert: '', from: head,     to: head+1 });
-        changes.push({ insert: '', from: anchor-1, to: anchor });
-        toOffset += 2;
+        if (match.index) {
+            const anchor = range.from + match.index + 1 + leftPadding;
+            const head = anchor + match[0].length - 2;
+            changes.push({ insert: '', from: head,     to: head+1 });
+            changes.push({ insert: '', from: anchor-1, to: anchor });
+            toOffset += 2;
+        }
     }
     
     // Push final italicize operation
