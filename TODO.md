@@ -4,14 +4,14 @@
 
 ## Todo:
 - [ ] Selection over multiple lines italicizes each line separately
-- [ ] Change end-of-word behavior to be outside of the italics
+- [x] Change end-of-word behavior to be outside of the italics
     - You finished typing a word. `Ctrl -> I`. You'd want to be outside of the word, right? 
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
 - [ ] Preferences to enable/disable specific italic behavior
 - [ ] Provide an option for underscore __bold__ as well
 - [ ] Specific handling of `***` and `___`
 - [ ] More thorough out-of-bounds checks
-- [ ] Improve on redundancy/efficiency: `updateRange()` and `expandCursorSelection()`
+- [ ] Improve on redundancy/efficiency: `updateRange()` and `expandSelectionToItalics()`
 - [x] Detect and trim addtional spacing automatically
 - [x] Preserve correct anchor and head
 - [x] Cursor offsets for multiple cursors need to be additive

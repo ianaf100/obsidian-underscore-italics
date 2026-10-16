@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 
 import { matchInnerItalics } from 'src/utils/regex';
-import { checkSelectionForItalics, expandCursorSelection, selectionText, updateRange } from "src/utils/selection-utils"
+import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, updateFinalCursorPos, updateRange } from "src/utils/selection-utils"
 import { DelimiterCharacter } from "src/types";
 import UnderscoreItalicsPlugin from 'src/main';
 
@@ -45,6 +45,9 @@ export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: Edit
 //  on ONE cursor/selection. Can be combined with other partial transactions.   
 function buildTransaction(view: EditorView, range: SelectionRange, delim: DelimiterCharacter, offset = 0) {
     let cursorPos;
+    let endOfWord = false;
+    let startOfWord = true;
+
     if (range.empty) {
         cursorPos = range.anchor;
         // If the cursor is right after or before an italic delimiter, move it inside
@@ -53,10 +56,17 @@ function buildTransaction(view: EditorView, range: SelectionRange, delim: Delimi
             cursorPos += 1;
         if (adjacentChars.match(/_\s/))
             cursorPos -= 1;
-        range = expandCursorSelection(EditorSelection.cursor(cursorPos), view.state);
-    }
 
-    if (checkSelectionForItalics(range, view.state) == false) {
+        // Attempt to expand the selection
+        let newRange = expandSelectionToItalics(EditorSelection.cursor(cursorPos), view.state);
+        if (newRange.empty) 
+            newRange = expandSelectionToWord(EditorSelection.cursor(cursorPos), view.state);
+        range = newRange;
+    }
+    const currentlyItalicized = checkSelectionForItalics(range, view.state);
+    cursorPos = updateFinalCursorPos(cursorPos, range, currentlyItalicized);
+
+    if (!currentlyItalicized) {
         return italicizeTransaction(view.state, range, ++offset, delim, cursorPos);
 
     } else {

@@ -34,7 +34,7 @@ const checkSelectionForItalics = (range: SelectionRange, state: EditorState) => 
     // Ensure the italic portion has similar length to the entire selection
     if (match) {
         const diff = selectionLength - (match[0].length - 2); 
-        return Math.abs(diff) <= 1;  // tolerance of 1(?)
+        return Math.abs(diff) <= 2;  // tolerance of 1(?)
     } 
     return false;
 }
@@ -54,22 +54,42 @@ const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
     return range;
 }
 
-// Given a cursor position, returns an expanded smart selection around it (if one is found)
-const expandCursorSelection = (cursor: SelectionRange, state: EditorState) => {
+// Given a cursor position, returns an expanded smart selection to enclosing italics (if found)
+const expandSelectionToItalics = (cursor: SelectionRange, state: EditorState) => {
     // Look for existing italics syntax
     const newRange = findItalicSyntaxParent(EditorSelection.cursor(cursor.anchor), state);
     if (!newRange.eq(cursor)) 
         // Return a new selection around the entire italics section
         return newRange;
 
-    // Check if the cursor is in the middle of a word 
-    const selectedWord = state.wordAt(cursor.anchor);
-    if (selectedWord) 
-        // Return a selection around the nearby word 
-        return EditorSelection.range(selectedWord.from, selectedWord.to);
-    
     // No smart selection found
     return cursor;
+}
+
+// Finds the surrounding word of a cursor position and return the selection 
+const expandSelectionToWord = (cursor: SelectionRange, state: EditorState) => {
+    const selectedWord = state.wordAt(cursor.anchor);
+    if (selectedWord) {
+        return EditorSelection.range(selectedWord.from, selectedWord.to);
+    }
+    // No word found
+    return cursor;
+}
+
+// Adjusts final cursor location if at the end/start of a word
+const updateFinalCursorPos = (cursorPos: number|undefined, range: SelectionRange, currentlyItalicized: boolean) => {
+    if (cursorPos === undefined || range.empty)
+        return cursorPos;
+    
+    // Cursor is at end of word
+    if (cursorPos == range.to)
+        cursorPos += (currentlyItalicized) ? 0 : 1;    // unitalicize needs no adjustment in current version
+    
+    // Cursor is at start of word
+    else if (cursorPos == range.from)
+        cursorPos += (currentlyItalicized) ? 0 : -1;
+    
+    return cursorPos;
 }
 
 // For a selection, expand the bounds to contain the entire italic section (if one is detected)
@@ -106,4 +126,4 @@ const findItalicSyntaxParent = (selectionRange: SelectionRange, state: EditorSta
     return selectionRange;
 };
 
-export { selectionText, nextChar, prevChar, findItalicSyntaxParent, checkSelectionForItalics, updateRange, expandCursorSelection }
+export { selectionText, nextChar, prevChar, findItalicSyntaxParent, checkSelectionForItalics, updateRange, expandSelectionToItalics, expandSelectionToWord, updateFinalCursorPos }
