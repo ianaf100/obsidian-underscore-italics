@@ -1,12 +1,12 @@
-import { Editor, MarkdownView, Plugin  } from 'obsidian';
+import { Editor, MarkdownFileInfo, MarkdownView, Plugin  } from 'obsidian';
 import { EditorView } from "@codemirror/view";
 import { UnderscoreItalicsSettingTab, UnderscoreItalicsSettings, DEFAULT_SETTINGS }  from './settings';
 import { toggleItalicsCommand } from './commands/toggle-italic';
 import { DelimiterCharacter } from './types';
 
 export default class UnderscoreItalicsPlugin extends Plugin {
-	settings: UnderscoreItalicsSettings;
-	delim: DelimiterCharacter;
+	settings!: UnderscoreItalicsSettings;
+	delim!: DelimiterCharacter;
 
 	async onload() {
 		await this.loadSettings();
@@ -15,10 +15,12 @@ export default class UnderscoreItalicsPlugin extends Plugin {
 			id: 'toggle-italic',
 			name: 'Toggle italic',	
 			icon: 'lucide-italic',
-			editorCallback: (_editor: Editor, view: MarkdownView) => {
-				// @ts-expect-error, not typed
-				const editorView = view.editor.cm as EditorView;
-				toggleItalicsCommand(this, editorView);
+			editorCallback: (_editor: Editor, view: MarkdownView | MarkdownFileInfo) => {
+				if (view instanceof MarkdownView) {
+					// @ts-expect-error, not typed
+					const editorView = view.editor.cm as EditorView;
+					toggleItalicsCommand(this, editorView);
+				}
 			}
 		});
 	}

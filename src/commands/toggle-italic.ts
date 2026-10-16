@@ -1,10 +1,10 @@
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 
-import { matchInnerItalics } from 'src/utils/regex';
-import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, updateFinalCursorPos, updateRange } from "src/utils/selection-utils"
-import { DelimiterCharacter } from "src/types";
-import UnderscoreItalicsPlugin from 'src/main';
+import { matchInnerItalics } from '../utils/regex';
+import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, updateFinalCursorPos, updateRange } from "../utils/selection-utils"
+import { DelimiterCharacter } from "../types";
+import UnderscoreItalicsPlugin from '../main';
 
 
 export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: EditorView): void => {
@@ -45,8 +45,6 @@ export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: Edit
 //  on ONE cursor/selection. Can be combined with other partial transactions.   
 function buildTransaction(view: EditorView, range: SelectionRange, delim: DelimiterCharacter, offset = 0) {
     let cursorPos;
-    let endOfWord = false;
-    let startOfWord = true;
 
     if (range.empty) {
         cursorPos = range.anchor;
@@ -102,7 +100,7 @@ function italicizeTransaction(
     
     // Push final italicize operation
     changes.push({ from: range.from + leftPadding, insert: `${delim}` });
-    changes.push({ from: range.to - rightPadding,   insert: `${delim}` });
+    changes.push({ from: range.to - rightPadding, insert: `${delim}` });
     return {
         toItalics: true,
         changes: changes,
