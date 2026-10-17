@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 import { syntaxTree } from '@codemirror/language';
 import { NodeIterator, SyntaxNode } from '@lezer/common';
-import { matchItalics } from "./regex";
+import { matchItalics, matchPrefixes } from "./regex";
 
 
 // Returns actual text string of a selection range's content in the editor. 
@@ -34,14 +34,24 @@ const checkSelectionForItalics = (range: SelectionRange, state: EditorState) => 
     // Ensure the italic portion has similar length to the entire selection
     if (match) {
         const diff = selectionLength - (match[0].length - 2); 
-        return Math.abs(diff) <= 2;  // tolerance of 1(?)
+        return Math.abs(diff) <= 1;  // tolerance of 1(?)
     } 
     return false;
 }
 
+
+    // let fromOffset = 0;
+    // const token = selectionText(state, range, radius);
+    // const match = matchPrefixes(token);
+    // fromOffset += (match?.index ?? 0)
+    //             + (match?.[0]?.length ?? 0)
+    //          // - radius;
+    // token = token.slice(match?.index);
+
+
 // Return a new selection that's properly expanded to nearby enclosing italics
 const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
-    const token = selectionText(state, range, 3);
+    const token = selectionText(state, range, radius);
     const match = matchItalics(token);
     if (match?.index != undefined) {
         const fromOffset = match.index - radius + 1; 
@@ -53,6 +63,25 @@ const updateRange = (state: EditorState, range: SelectionRange, radius = 3) => {
     }
     return range;
 }
+// TODO: Instead of a guessing radius, I should expand to the full line
+
+// Attempt 1
+const trimLinePrefixes = (state: EditorState, range: SelectionRange, radius = 1) => {
+    const token = selectionText(state, range, radius);
+    // if (!token.contains('\n')) {  // unnecessary
+    //     return range;
+    // }
+    const match = matchPrefixes(token);
+    if (match?.index != undefined) {
+        const fromOffset = match[0].length + match.index - radius;;  
+        const anchor = (range.anchor < range.head) ? range.from + fromOffset : range.to; 
+        const head   = (range.anchor > range.head) ? range.from + fromOffset : range.to; 
+        return EditorSelection.range(anchor, head);
+    }
+    return range;
+}
+
+ 
 
 // Given a cursor position, returns an expanded smart selection to enclosing italics (if found)
 const expandSelectionToItalics = (cursor: SelectionRange, state: EditorState) => {
@@ -77,18 +106,15 @@ const expandSelectionToWord = (cursor: SelectionRange, state: EditorState) => {
 }
 
 // Adjusts final cursor location if at the end/start of a word
-const updateFinalCursorPos = (cursorPos: number|undefined, range: SelectionRange, currentlyItalicized: boolean) => {
+const updateFinalCursorPos = (cursorPos: number|undefined, range: SelectionRange) => {
     if (cursorPos === undefined || range.empty)
         return cursorPos;
-    
     // Cursor is at end of word
     if (cursorPos == range.to)
-        cursorPos += (currentlyItalicized) ? 0 : 1;    // unitalicize needs no adjustment in current version
-    
+        cursorPos += 1;    // unitalicize needs no adjustment in current version
     // Cursor is at start of word
     else if (cursorPos == range.from)
-        cursorPos += (currentlyItalicized) ? 0 : -1;
-    
+        cursorPos += -1;
     return cursorPos;
 }
 
@@ -126,4 +152,4 @@ const findItalicSyntaxParent = (selectionRange: SelectionRange, state: EditorSta
     return selectionRange;
 };
 
-export { selectionText, nextChar, prevChar, findItalicSyntaxParent, checkSelectionForItalics, updateRange, expandSelectionToItalics, expandSelectionToWord, updateFinalCursorPos }
+export { selectionText, nextChar, prevChar, findItalicSyntaxParent, checkSelectionForItalics, updateRange, expandSelectionToItalics, expandSelectionToWord, updateFinalCursorPos, trimLinePrefixes }

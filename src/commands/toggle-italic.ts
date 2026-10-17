@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 
 import { matchInnerItalics } from '../utils/regex';
-import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, updateFinalCursorPos, updateRange } from "../utils/selection-utils"
+import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, trimLinePrefixes, updateFinalCursorPos, updateRange } from "../utils/selection-utils"
 import { DelimiterCharacter } from "../types";
 import UnderscoreItalicsPlugin from '../main';
 
@@ -61,10 +61,10 @@ function buildTransaction(view: EditorView, range: SelectionRange, delim: Delimi
             newRange = expandSelectionToWord(EditorSelection.cursor(cursorPos), view.state);
         range = newRange;
     }
+    range = trimLinePrefixes(view.state, range);
     const currentlyItalicized = checkSelectionForItalics(range, view.state);
-    cursorPos = updateFinalCursorPos(cursorPos, range, currentlyItalicized);
-
     if (!currentlyItalicized) {
+        cursorPos = updateFinalCursorPos(cursorPos, range);
         return italicizeTransaction(view.state, range, ++offset, delim, cursorPos);
 
     } else {

@@ -3,7 +3,9 @@
 - Internal unitalic fails when there's two consecutive italics separated by space?
 
 ## Todo:
-- [ ] Selection over multiple lines italicizes each line separately
+- [ ] Handle a selection spanning multiple lines
+    - [ ] For multiple full lines, italicize each line individually
+- [ ] Handling lists, block quotes, and the like
 - [x] Change end-of-word behavior to be outside of the italics
     - You finished typing a word. `Ctrl -> I`. You'd want to be outside of the word, right? 
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
