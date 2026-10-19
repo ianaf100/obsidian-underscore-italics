@@ -1,10 +1,17 @@
 import { EditorView } from "@codemirror/view";
 import { ChangeSpec, EditorSelection, EditorState, SelectionRange } from "@codemirror/state";
 
-import { matchInnerItalics } from '../utils/regex';
-import { checkSelectionForItalics, expandSelectionToItalics, expandSelectionToWord, selectionText, trimLinePrefixes, updateFinalCursorPos, updateRange } from "../utils/selection-utils"
-import { DelimiterCharacter } from "../types";
 import UnderscoreItalicsPlugin from '../main';
+import { matchInnerItalics } from '../utils/regex';
+import { DelimiterCharacter } from "../types";
+import { 
+    expandSelectionToItalics,
+    expandSelectionToWord,
+    findItalicSyntaxParent,
+    selectionText,
+    trimLinePrefixes,
+    updateFinalCursorPos 
+} from "../utils/selection-utils"
 
 
 export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: EditorView): void => {
@@ -14,6 +21,10 @@ export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: Edit
 
     const selectionRanges: SelectionRange[] = [];
     const changeList: ChangeSpec[] = [];
+
+    // TODO: handle multi-line selections
+    // if (text.contains('\n')) 
+    // lines = getSelectedLines(state, rangex)
 
     // 1. Single cursor/selection
     if (editorSelection.ranges.length == 1) {
@@ -43,33 +54,37 @@ export const toggleItalicsCommand = (plugin: UnderscoreItalicsPlugin, view: Edit
 
 // Returns the components of a single italicize/unitalicize transaction  
 //  on ONE cursor/selection. Can be combined with other partial transactions.   
-function buildTransaction(view: EditorView, range: SelectionRange, delim: DelimiterCharacter, offset = 0) {
+function buildTransaction(view: EditorView, currentRange: SelectionRange, delim: DelimiterCharacter, offset = 0) {
     let cursorPos;
+    if (currentRange.empty) {
+        cursorPos = currentRange.anchor;
 
-    if (range.empty) {
-        cursorPos = range.anchor;
         // If the cursor is right after or before an italic delimiter, move it inside
-        const adjacentChars = selectionText(view.state, {from: cursorPos-1, to: cursorPos+1});
-        if (adjacentChars.match(/\s_/))
-            cursorPos += 1;
-        if (adjacentChars.match(/_\s/))
-            cursorPos -= 1;
+        const adjacentChars = view.state.sliceDoc(cursorPos-1, cursorPos+1);
+        if (adjacentChars.match(/\s_/)) cursorPos += 1;
+        if (adjacentChars.match(/_\s/)) cursorPos -= 1;
 
         // Attempt to expand the selection
-        let newRange = expandSelectionToItalics(EditorSelection.cursor(cursorPos), view.state);
-        if (newRange.empty) 
-            newRange = expandSelectionToWord(EditorSelection.cursor(cursorPos), view.state);
-        range = newRange;
+        currentRange = expandSelectionToItalics(EditorSelection.cursor(cursorPos), view.state);
+        if (currentRange.empty) 
+            currentRange = expandSelectionToWord(EditorSelection.cursor(cursorPos), view.state);
     }
-    range = trimLinePrefixes(view.state, range);
-    const currentlyItalicized = checkSelectionForItalics(range, view.state);
-    if (!currentlyItalicized) {
-        cursorPos = updateFinalCursorPos(cursorPos, range);
-        return italicizeTransaction(view.state, range, ++offset, delim, cursorPos);
-
+    const italicRange = findItalicSyntaxParent(currentRange, view.state);
+    const currentlyItalicized = italicRange !== undefined;
+    
+    // Trim list prefixes, blockquotes, etc from italic portion
+    currentRange = trimLinePrefixes(currentRange, view.state);
+    
+    if (currentlyItalicized == false) {
+        cursorPos = updateFinalCursorPos(cursorPos, currentRange);
+        return italicizeTransaction(view.state, currentRange, ++offset, delim, cursorPos);
     } else {
-        const updatedRange = updateRange(view.state, range);
-        return unitalicizeTransaction(updatedRange, --offset, cursorPos);
+        return unitalicizeTransaction(
+            currentRange, 
+            italicRange,
+            --offset, 
+            cursorPos
+        );
     }
 }
 
@@ -97,7 +112,6 @@ function italicizeTransaction(
             toOffset += 2;
         }
     }
-    
     // Push final italicize operation
     changes.push({ from: range.from + leftPadding, insert: `${delim}` });
     changes.push({ from: range.to - rightPadding, insert: `${delim}` });
@@ -115,17 +129,17 @@ function italicizeTransaction(
     }
 }
 
-function unitalicizeTransaction(range: SelectionRange, accumOffset: number, cursorPos?: number) {
+function unitalicizeTransaction(currentRange: SelectionRange, italicRange: SelectionRange, accumOffset: number, cursorPos?: number) {
     const changes = [
-        { from: range.to,     to: range.to+1, insert: '' },
-        { from: range.from-1, to: range.from, insert: '' }
+        { from: italicRange.to,     to: italicRange.to+1, insert: '' },
+        { from: italicRange.from-1, to: italicRange.from, insert: '' }
     ];
     return {
         toItalics: false,
         changes: changes,
         selectionRange: updateCursorTransaction({ 
-            anchor: range.anchor, 
-            head: range.head, 
+            anchor: currentRange.anchor, 
+            head: currentRange.head, 
             cursor: cursorPos, 
             accumOffset: accumOffset 
         }),
@@ -146,7 +160,7 @@ function updateCursorTransaction({ anchor, head, cursor, fromOffset = 0, toOffse
         const finalCursor = cursor + accumOffset;
         return EditorSelection.cursor(Math.max(0, finalCursor)); 
         
-    // Cursor is a selection range
+    // Cursor is a selection
     } else {
         const leftToRight = anchor < head;
         const [fromBase, toBase] = leftToRight ? [anchor, head] : [head, anchor];
@@ -155,4 +169,3 @@ function updateCursorTransaction({ anchor, head, cursor, fromOffset = 0, toOffse
         return EditorSelection.range(leftToRight ? from : to, leftToRight ? to : from);
     } 
 }
-

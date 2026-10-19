@@ -5,15 +5,15 @@
 ## Todo:
 - [ ] Handle a selection spanning multiple lines
     - [ ] For multiple full lines, italicize each line individually
-- [ ] Handling lists, block quotes, and the like
+- [x] Handling lists, block quotes, and the like
 - [x] Change end-of-word behavior to be outside of the italics
     - You finished typing a word. `Ctrl -> I`. You'd want to be outside of the word, right? 
+- [x] Maintain initial selection when removing parent italics
 - [ ] Expand built-in word parsing to handle apostrophes and other expanded characters
 - [ ] Preferences to enable/disable specific italic behavior
 - [ ] Provide an option for underscore __bold__ as well
 - [ ] Specific handling of `***` and `___`
 - [ ] More thorough out-of-bounds checks
-- [ ] Improve on redundancy/efficiency: `updateRange()` and `expandSelectionToItalics()`
 - [x] Detect and trim addtional spacing automatically
 - [x] Preserve correct anchor and head
 - [x] Cursor offsets for multiple cursors need to be additive
@@ -22,7 +22,3 @@
 - [x] Larger selection with smaller italic selections inside doesn't do what I want
 - [x] Actually handling the change between asterisk/underscore
     - I guess we'll just look for _both_ in detection (being careful to be consistent), then use the preferred delimiter when we insert/replace
-
-## Other
-- [ ] Packaging/installing steps
-- [ ] Publishing steps?
