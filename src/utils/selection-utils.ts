@@ -16,14 +16,21 @@ export function selectionText(
     return state.sliceDoc(from, to);
 }
 
-const nextChar = (anchor: number, state: EditorState) => {
-    const to = Math.min(state.doc.length, anchor + 1); 
-    return state.sliceDoc(anchor, to);
-}
-
-const prevChar = (anchor: number, state: EditorState) => {
-    const from = Math.max(0, anchor - 1); 
-    return state.sliceDoc(from, anchor);
+export function getSelectedLines(
+    state: EditorState, 
+    range: SelectionRange
+) : { from: number, to: number }[] 
+{
+    let lines: {from: number, to: number}[] = [];
+    let nextLine = state.doc.lineAt(range.from);
+    lines.push({from: range.from, to: nextLine.to});
+    nextLine = state.doc.lineAt(nextLine.to + 1);
+    while (nextLine.to <= range.to) {
+        lines.push({from: nextLine.from, to: nextLine.to});
+        nextLine = state.doc.lineAt(nextLine.to + 1);
+    }
+    lines.push({from: nextLine.from, to: range.to});
+    return lines;
 }
 
 // Get whole line (based on '@codemirror/commands:selectLine')

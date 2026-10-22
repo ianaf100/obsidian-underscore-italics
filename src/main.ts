@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { UnderscoreItalicsSettingTab, UnderscoreItalicsSettings, DEFAULT_SETTINGS }  from './settings';
 import { toggleItalicsCommand } from './commands/toggle-italic';
 import { DelimiterCharacter } from './types';
+import { underscoreViewPlugin } from './rendering/view-plugin';
 
 export default class UnderscoreItalicsPlugin extends Plugin {
 	settings!: UnderscoreItalicsSettings;
@@ -23,6 +24,7 @@ export default class UnderscoreItalicsPlugin extends Plugin {
 				}
 			}
 		});
+		this.registerEditorExtension(underscoreViewPlugin);
 	}
 
 	onunload() { }
